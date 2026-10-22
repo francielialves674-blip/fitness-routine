@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FitnessRoutine 2.0 - Premium</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+  *{box-sizing:border-box}
+  body{font-family:'Inter',Arial;background:#0f0f0f;color:#fff;margin:0;padding:16px}
+  .topbar{background:#1a1a1a;border-radius:20px;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+  h1{margin:0;color:#ff9f5a;font-size:28px}
+  .card{background:#1e1e1e;border-radius:20px;padding:20px;margin:16px 0;border:1px solid #2a2a2a}
+  button{background:#ff9f5a;color:#000;border:none;padding:12px 18px;border-radius:12px;font-weight:900;cursor:pointer;transition:.2s}
+  button:hover{transform:scale(1.05)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:10px}
+  .day{background:#252525;border-radius:16px;padding:14px;text-align:center;transition:.3s;position:relative}
+  .day.top{border:2px solid #ff9f5a;box-shadow:0 0 20px #ff9f5a55;transform:translateY(-4px)}
+  .badge{background:#ff9f5a;color:#000;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:900;position:absolute;top:-8px;left:50%;transform:translateX(-50%)}
+  input,select{background:#2a2a2a;color:#fff;padding:12px;border-radius:10px;border:1px solid #333;margin:5px}
+  .bar{height:10px;background:#2a2a2a;border-radius:10px;overflow:hidden;margin-top:8px}
+  .fill{height:100%;background:linear-gradient(90deg,#ff9f5a,#ff6a00);width:0%;transition:1s}
+  .totais{font-size:18px;line-height:1.6}
+  canvas{width:100%!important;height:180px!important;background:#151515;border-radius:12px;margin-top:12px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>🔥 FitnessRoutine 2.0</h1>
+  <div><span id="data"></span></div>
+</div>
+
+<div class="card">
+  <h3>📝 1 - Registrar treino do dia</h3>
+  <select id="dia">
+    <option value="0">Segunda</option><option value="1">Terca</option>
+    <option value="2">Quarta</option><option value="3">Quinta</option>
+    <option value="4">Sexta</option><option value="5">Sabado</option>
+    <option value="6">Domingo</option>
+  </select>
+  <input type="number" id="min" placeholder="Minutos" min="1">
+  <button onclick="registrar()">+ Registrar</button>
+  <button onclick="zerar()" style="background:#333;color:#fff">Zerar</button>
+  <p id="msg" style="color:#ff9f5a;font-weight:bold"></p>
+  
+  <div style="margin-top:12px">Meta Semanal: 300 min
+    <div class="bar"><div class="fill" id="metaFill"></div></div>
+    <small id="metaTxt">0% concluido</small>
+  </div>
+</div>
+
+<div class="card">
+  <h3>📊 2 e 3 - Rotina + Relatorio + TOP DAY + Calorias + Grafico</h3>
+  <div class="grid" id="semana"></div>
+  <canvas id="grafico"></canvas>
+  <div class="totais" id="totais" style="margin-top:16px"></div>
+</div>
+
+<div class="card">
+  <button onclick="encerrar()">4 - Sair do sistema / Encerramento</button>
+  <p id="encerramento"></p>
+</div>
+
+<script>
+const nomeDias=["Segunda","Terca","Quarta","Quinta","Sexta","Sabado","Domingo"];
+const abrev=["Seg","Ter","Qua","Qui","Sex","Sab","Dom"];
+let minutosTreino=JSON.parse(localStorage.getItem("fit_v2")||"[0,0,0,0,0,0,0]");
+const calPorMin=8.5;
+document.getElementById('data').innerText=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+
+function salvar(){localStorage.setItem("fit_v2",JSON.stringify(minutosTreino));}
+function registrar(){
+  let d=parseInt(document.getElementById('dia').value);
+  let m=parseInt(document.getElementById('min').value);
+  if(isNaN(m)||m<=0){document.getElementById('msg').innerText=">> Erro: minutos devem ser > 0.";return;}
+  minutosTreino[d]+=m;
+  document.getElementById('msg').innerText=`>> ${m} min registrados em ${nomeDias[d]}! (${(m*calPorMin).toFixed(0)} cal)`;
+  document.getElementById('min').value="";
+  salvar(); render();
+}
+function zerar(){if(confirm("Zerar toda semana?")){minutosTreino=[0,0,0,0,0,0,0]; salvar(); render();}}
+function render(){
+  let maior=Math.max(...minutosTreino);
+  let idx=maior>0?minutosTreino.indexOf(maior):-1;
+  let total=minutosTreino.reduce((a,b)=>a+b,0);
+  let perc=Math.min(100,Math.round(total/300*100));
+  document.getElementById('metaFill').style.width=perc+"%";
+  document.getElementById('metaTxt').innerText=`${perc}% concluido - ${total}/300 min - Faltam ${Math.max(0,300-total)} min`;
+
+  let html="";
+  minutosTreino.forEach((v,i)=>{
+    let cal=(v*calPorMin).toFixed(0);
+    let w=Math.min(100,v);
+    html+=`<div class="day ${i==idx?'top':''}">
+      ${i==idx?'<span class="badge">★ TOP DAY</span>':''}
+      <b>${abrev[i]}</b><br>
+      <div style="font-size:20px;font-weight:900;margin:6px 0">${v} min</div>
+      <small>${cal} kcal</small>
+      <div class="bar"><div class="fill" style="width:${w}%"></div></div>
+    </div>`;
+  });
+  document.getElementById('semana').innerHTML=html;
+  document.getElementById('totais').innerHTML=
+    `🔥 <b>Total:</b> ${total} min | <b>${(total*calPorMin).toFixed(0)} kcal</b> | Media: ${(total/7).toFixed(1)} min/dia<br>`+
+    (idx>=0?`🏆 <b>TOP DAY:</b> ${nomeDias[idx]} com ${maior} min (${(maior*calPorMin).toFixed(0)} cal)`:"Nenhum treino ainda");
+  
+  desenhaGrafico();
+}
+function desenhaGrafico(){
+  const c=document.getElementById('grafico'); const ctx=c.getContext('2d');
+  c.width=c.offsetWidth; c.height=180;
+  ctx.clearRect(0,0,c.width,c.height);
+  let max=Math.max(60,...minutosTreino);
+  let barW=c.width/7-12;
+  minutosTreino.forEach((v,i)=>{
+    let h=(v/max)*120;
+    let x=i*(c.width/7)+6;
+    let y=150-h;
+    ctx.fillStyle=i==minutosTreino.indexOf(Math.max(...minutosTreino))&&v>0?"#ff9f5a":"#3a3a3a";
+    ctx.fillRect(x,y,barW,h);
+    ctx.fillStyle="#fff"; ctx.font="11px Inter"; ctx.fillText(v+"m",x+4,y-4);
+    ctx.fillText(abrev[i],x+4,165);
+  });
+}
+function encerrar(){
+  let total=minutosTreino.reduce((a,b)=>a+b,0);
+  document.getElementById('encerramento').innerHTML=
+    `=================================================<br>
+     ✅ <b>ENCERRANDO O SISTEMA</b><br>
+     Obrigado por usar o FitnessRoutine!<br>
+     Resumo final: Voce treinou <b>${total} min</b> (${(total*calPorMin).toFixed(0)} cal)<br>
+     Processo finalizado voluntariamente. Continue se exercitando!<br>
+     Ate a proxima!<br>
+     =================================================`;
+}
+render();
+</script>
+</body>
+</html>
